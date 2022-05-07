@@ -64,9 +64,40 @@ team_t team = {
 /* 
  * mm_init - initialize the malloc package.
  */
+// 초기화 또는 가용메모리 부족시 힙영역 확장
+static void *extend_heap(size_t words)
+{
+    char *bp;
+    size_t size;
+
+    // 입력된 인자로 실제 할당에 필요한 사이즈 계산 및 할당
+    size = (words % 2) ? (words+1) * WSIZE : words * WSIZE;
+    if ((long)(bp = mem_sbrk(size)) == -1) /* 할당이 안될경우 -1로 반환되기 때문에 long형으로 바꿔서 확인한듯 */
+        return NULL;
+
+    PUT(HDRP(bp), PACK(size, 0)); /* 확장된 힙영역을 가용리스트로 초기화(헤더) */
+    PUT(FTRP(bp), PACK(size, 0)); /* 확장된 힙영역을 가용리스트로 초기화(푸터) */
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1); /* 확장된 힙영역의 마지막 워드를 에필로그 헤더로 초기화 */
+    
+    return coalesce(bp); /* 이전 블럭이 가용하면 연결해서 반환 */
+}
+
+//  초기화. 프로그램의 malloc/free 요청으로부터 메모리를 할당/반환할 수 있도록 heap영역 초기화함.
+static char *heap_listp;
 int mm_init(void)
 {
-    
+    // 빈 가용리스트 4워드 할당 및 prologue block 초기화
+    if ((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1)
+        return -1;
+    PUT(heap_listp, 0);
+    PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1)); /* prologue header */
+    PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1)); /* prologue footer */
+    PUT(heap_listp + (3*WSIZE), PACK(0, 1)); /* epilogue header */
+    heap_listp += (2*WSIZE); /* 왜 프롤로그 푸터를 가리키지..? */
+
+    // 청크사이즈 바이트의 가용블럭으로 힙 확장
+    if (extend_heap(CHUNKSIZE/WSIZE) == NULL)
+        return -1;
     return 0;
 }
 
