@@ -66,7 +66,7 @@ team_t team = {
  */
 //  초기화. 프로그램의 malloc/free 요청으로부터 메모리를 할당/반환할 수 있도록 heap영역 초기화함.
 static void *extend_heap(size_t words);
-static char *heap_listp;
+static void *heap_listp;
 int mm_init(void)
 {
     // 빈 가용리스트 4워드 할당 및 prologue block 초기화
@@ -76,7 +76,7 @@ int mm_init(void)
     PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1)); /* prologue header */
     PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1)); /* prologue footer */
     PUT(heap_listp + (3*WSIZE), PACK(0, 1)); /* epilogue header */
-    heap_listp += (2*WSIZE); /* 왜 프롤로그 푸터를 가리키지..? */
+    heap_listp += (2*WSIZE); /* 프롤로그 푸터를 가리킴으로써 힙 영역에서 첫번째 bp의 역할을 함 */
 
     // 청크사이즈 바이트의 가용블럭으로 힙 확장
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL)
@@ -88,16 +88,36 @@ int mm_init(void)
  * mm_malloc - Allocate a block by incrementing the brk pointer.
  *     Always allocate a block whose size is a multiple of the alignment.
  */
+void *find_fit(size_t size);
+void place(void *bp, size_t asize);
 void *mm_malloc(size_t size)
 {
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-	return NULL;
-    else {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
+    size_t asize;   /* alignment가 적용된, 실제 할당이 필요한 사이즈 */
+    size_t extendsize; /* 가용한 영역이 없을 경우 힙을 확장하기 위한 사이즈 */
+
+    // 잘못된 요청은 무시
+    if (size == 0)
+        return NULL;
+
+    // 실제 할당이 필요한 사이즈 계산
+    if (size <= DSIZE)
+        asize = 2 * DSIZE;
+    else
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE)
+
+    // asize만큼 할당할 수 있는 가용영역이 있으면 할당/영역분할 하고 bp 반환
+    if ((bp = find_fit(asize)) != NULL)
+    {
+        place(bp, asize);
+        return bp;
     }
+
+    // 할당가능 영역이 없으면 heap extend후 할당 및 반환
+    extendsize = MAX(asize, CHUNKSIZE);
+    if ((bp = extend_heap(extendsize/WSIZE) == NULL))
+        return NULL;
+    place(bp, asize);
+    return bp;
 }
 
 /*
@@ -189,7 +209,36 @@ static void *coalesce(void *bp)
     return bp;
 }
 
+// 요구 사이즈에 대해서 가용 영역 찾기
+void *find_fit(size_t asize)
+{
+    void *bp;
+    for (bp=heap_listp; GET_SIZE(HDRP(bp))>0; bp=NEXT_BLKP(bp)) /* 에필로그 만나기 전까지 반복 */
+    {
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) /* 찾았으면 리턴 */
+            return bp;
+        return NULL; /* 못찾았으면 널 리턴 */
+    }
+}
 
+// 가용 영역의 포인터 bp에 대해서 헤더/푸터 초기화, 요구 사이즈보다 크면 분할
+void place(void *bp, size_t asize)
+{
+    size_t original_size = GET_SIZE(HDRP(bp));
+
+    if (original_size >= size + 2 * DSIZE)
+    {
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+        PUT(HDRP(NEXT_BLKP(bp)), PACK(original_size - size, 0);
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(original_size - size, 0);
+    }
+    else
+    {
+        PUT(HDRP(bp), PACK(original_size, 1));
+        PUT(FTRP(bp), PACK(original_size, 1));
+    }
+}
 
 
 
