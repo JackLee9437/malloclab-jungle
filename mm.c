@@ -24,11 +24,11 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "ateam",
+    "Sixth",
     /* First member's full name */
-    "Harry Bovik",
+    "Jack",
     /* First member's email address */
-    "bovik@cs.cmu.edu",
+    "iacog@kakao.com",
     /* Second member's full name (leave blank if none) */
     "",
     /* Second member's email address (leave blank if none) */
@@ -36,13 +36,13 @@ team_t team = {
 };
 
 /* single word (4) or double word (8) alignment */
-#define ALIGNMENT 8
+// #define ALIGNMENT 8
 
 /* rounds up to the nearest multiple of ALIGNMENT */
-#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+// #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
 
-#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+// #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
 // malloc 구현 위한 상수 및 매크로 선언부
 #define WSIZE   4   /* 워드, 헤더/푸터 사이즈 */
@@ -94,6 +94,7 @@ void *mm_malloc(size_t size)
 {
     size_t asize;   /* alignment가 적용된, 실제 할당이 필요한 사이즈 */
     size_t extendsize; /* 가용한 영역이 없을 경우 힙을 확장하기 위한 사이즈 */
+    void *bp;
 
     // 잘못된 요청은 무시
     if (size == 0)
@@ -103,7 +104,7 @@ void *mm_malloc(size_t size)
     if (size <= DSIZE)
         asize = 2 * DSIZE;
     else
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE)
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
 
     // asize만큼 할당할 수 있는 가용영역이 있으면 할당/영역분할 하고 bp 반환
     if ((bp = find_fit(asize)) != NULL)
@@ -114,7 +115,7 @@ void *mm_malloc(size_t size)
 
     // 할당가능 영역이 없으면 heap extend후 할당 및 반환
     extendsize = MAX(asize, CHUNKSIZE);
-    if ((bp = extend_heap(extendsize/WSIZE) == NULL))
+    if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
         return NULL;
     place(bp, asize);
     return bp;
@@ -124,7 +125,7 @@ void *mm_malloc(size_t size)
  * mm_free - Freeing a block does nothing.
  */
 static void *coalesce(void *bp);
-void mm_free(void *ptr)
+void mm_free(void *bp)
 {
     size_t size = GET_SIZE(HDRP(bp));
 
@@ -136,28 +137,28 @@ void mm_free(void *ptr)
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
-void *mm_realloc(void *ptr, size_t size)
+void *mm_realloc(void *bp, size_t size)
 {
-    void *oldptr = ptr;
-    void *newptr;
+    void *oldbp = bp;
+    void *newbp;
     size_t copySize;
     
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
+    newbp = mm_malloc(size);
+    if (newbp == NULL)
       return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+    copySize = *(size_t *)((char *)oldbp - SIZE_T_SIZE);
     if (size < copySize)
       copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
+    memcpy(newbp, oldbp, copySize);
+    mm_free(oldbp);
+    return newbp;
 }
 
 
 // 초기화 또는 가용메모리 부족시 힙영역 확장
 static void *extend_heap(size_t words)
 {
-    char *bp;
+    void *bp;
     size_t size;
 
     // 입력된 인자로 실제 할당에 필요한 사이즈 계산 및 할당
@@ -167,7 +168,7 @@ static void *extend_heap(size_t words)
 
     PUT(HDRP(bp), PACK(size, 0)); /* 확장된 힙영역을 가용리스트로 초기화(헤더) */
     PUT(FTRP(bp), PACK(size, 0)); /* 확장된 힙영역을 가용리스트로 초기화(푸터) */
-    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1); /* 확장된 힙영역의 마지막 워드를 에필로그 헤더로 초기화 */
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); /* 확장된 힙영역의 마지막 워드를 에필로그 헤더로 초기화 */
     
     return coalesce(bp); /* 이전 블럭이 가용하면 연결해서 반환 */
 }
@@ -217,8 +218,8 @@ void *find_fit(size_t asize)
     {
         if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) /* 찾았으면 리턴 */
             return bp;
-        return NULL; /* 못찾았으면 널 리턴 */
     }
+    return NULL; /* 못찾았으면 널 리턴 */
 }
 
 // 가용 영역의 포인터 bp에 대해서 헤더/푸터 초기화, 요구 사이즈보다 크면 분할
@@ -226,12 +227,12 @@ void place(void *bp, size_t asize)
 {
     size_t original_size = GET_SIZE(HDRP(bp));
 
-    if (original_size >= size + 2 * DSIZE)
+    if (original_size >= asize + 2 * DSIZE)
     {
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FTRP(bp), PACK(asize, 1));
-        PUT(HDRP(NEXT_BLKP(bp)), PACK(original_size - size, 0);
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(original_size - size, 0);
+        PUT(HDRP(NEXT_BLKP(bp)), PACK(original_size - asize, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(original_size - asize, 0));
     }
     else
     {
