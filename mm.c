@@ -44,11 +44,29 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+// malloc 구현 위한 상수 및 매크로 선언부
+#define WSIZE   4   /* 워드, 헤더/푸터 사이즈 */
+#define DSIZE   8   /* 더블워드 사이즈 */
+#define CHUNKSIZE   (1<<12) /* 힙영역 확장시 필요한 사이즈 */
+
+#define MAX(x, y)   ((x) > (y)? (x) : (y)) /* 최대값 반환 */
+#define PACK(size, alloc)   ((size) | (alloc)) /* 할당하는 size와 할당여부 bit를 합쳐준 값을 반환 */
+#define GET(p)  (*(unsigned int *)(p))  /* 헤더/푸터 p에 담긴 값 반환 */
+#define PUT(p, val) (*(unsigned int *)(p) = (val))  /* 헤더/푸터 p에 val값 저장 */
+#define GET_SIZE(p) (GET(p) & ~0x7) /* 헤더/푸터 p에서 사이즈만 추출 (7:111, ~7:000으로 할당여부 bit를 0으로 마스킹) */
+#define GET_ALLOC(p)    (GET(p) & 0x1)  /* 헤더/푸터 p에서 할당여부 bit만 추출 */
+#define HDRP(bp)    ((char *)(bp) - WSIZE) /* 블럭(페이로드)포인터 bp로부터 헤더p 계산 및 반환 */
+#define FTRP(bp)    ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE) /* 블럭(페이로드)포인터 bp로부터 푸터p 계산 및 반환 */
+#define NEXT_BLKP(bp)   ((char *)(bp) + GET_SIZE((char *)(bp) - WSIZE)) /* 블럭포인터 bp로부터 다음 블럭포인터 bp 계산 및 반환 */
+#define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE)) /* 블럭포인터 bp로부터 이전 블럭포인터 bp 계산 및 반환 */
+
+
 /* 
  * mm_init - initialize the malloc package.
  */
 int mm_init(void)
 {
+    
     return 0;
 }
 
