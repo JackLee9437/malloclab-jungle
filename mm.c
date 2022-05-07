@@ -146,7 +146,7 @@ void *mm_realloc(void *bp, size_t size)
     newbp = mm_malloc(size);
     if (newbp == NULL)
       return NULL;
-    copySize = *(size_t *)((char *)oldbp - SIZE_T_SIZE);
+    copySize = GET_SIZE(HDRP(oldbp)) - DSIZE;
     if (size < copySize)
       copySize = size;
     memcpy(newbp, oldbp, copySize);
