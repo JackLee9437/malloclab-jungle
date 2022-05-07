@@ -64,25 +64,8 @@ team_t team = {
 /* 
  * mm_init - initialize the malloc package.
  */
-// 초기화 또는 가용메모리 부족시 힙영역 확장
-static void *extend_heap(size_t words)
-{
-    char *bp;
-    size_t size;
-
-    // 입력된 인자로 실제 할당에 필요한 사이즈 계산 및 할당
-    size = (words % 2) ? (words+1) * WSIZE : words * WSIZE;
-    if ((long)(bp = mem_sbrk(size)) == -1) /* 할당이 안될경우 -1로 반환되기 때문에 long형으로 바꿔서 확인한듯 */
-        return NULL;
-
-    PUT(HDRP(bp), PACK(size, 0)); /* 확장된 힙영역을 가용리스트로 초기화(헤더) */
-    PUT(FTRP(bp), PACK(size, 0)); /* 확장된 힙영역을 가용리스트로 초기화(푸터) */
-    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1); /* 확장된 힙영역의 마지막 워드를 에필로그 헤더로 초기화 */
-    
-    return coalesce(bp); /* 이전 블럭이 가용하면 연결해서 반환 */
-}
-
 //  초기화. 프로그램의 malloc/free 요청으로부터 메모리를 할당/반환할 수 있도록 heap영역 초기화함.
+static void *extend_heap(size_t words);
 static char *heap_listp;
 int mm_init(void)
 {
@@ -120,8 +103,14 @@ void *mm_malloc(size_t size)
 /*
  * mm_free - Freeing a block does nothing.
  */
+static void *coalesce(void *bp);
 void mm_free(void *ptr)
 {
+    size_t size = GET_SIZE(HDRP(bp));
+
+    PUT(HDRP(bp), PACK(size, 0));   /* 헤더의 할당여부bit를 0으로 변경 */
+    PUT(FTRP(bp), PACK(size, 0));   /* 푸터의 할당여부bit를 0으로 변경 */
+    coalesce(bp);   /* 이전/이후 블럭이 가용블럭이면 연결 */
 }
 
 /*
@@ -145,12 +134,60 @@ void *mm_realloc(void *ptr, size_t size)
 }
 
 
+// 초기화 또는 가용메모리 부족시 힙영역 확장
+static void *extend_heap(size_t words)
+{
+    char *bp;
+    size_t size;
 
+    // 입력된 인자로 실제 할당에 필요한 사이즈 계산 및 할당
+    size = (words % 2) ? (words+1) * WSIZE : words * WSIZE;
+    if ((long)(bp = mem_sbrk(size)) == -1) /* 할당이 안될경우 -1로 반환되기 때문에 long형으로 바꿔서 확인한듯 */
+        return NULL;
 
+    PUT(HDRP(bp), PACK(size, 0)); /* 확장된 힙영역을 가용리스트로 초기화(헤더) */
+    PUT(FTRP(bp), PACK(size, 0)); /* 확장된 힙영역을 가용리스트로 초기화(푸터) */
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1); /* 확장된 힙영역의 마지막 워드를 에필로그 헤더로 초기화 */
+    
+    return coalesce(bp); /* 이전 블럭이 가용하면 연결해서 반환 */
+}
 
+// 이전 이후 가용한 블럭에 대한 연결
+static void *coalesce(void *bp)
+{
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
+    size_t size = GET_SIZE(HDRP(bp));
 
+    // case1 : 이전 이후 모두 할당된 경우
+    if (prev_alloc && next_alloc) {
+        return bp;
+    }
 
+    // case2 : 이후 블럭이 가용한 경우
+    else if (prev_alloc && !next_alloc) {
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+    }
 
+    // case3 : 이전 블럭이 가용한 경우
+    else if (!prev_alloc && next_alloc) {
+        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        PUT(FTRP(bp), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }
+
+    // case4 : 이전 이후 블럭 모두 가용한 경우
+    else {
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }
+    return bp;
+}
 
 
 
