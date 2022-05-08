@@ -86,9 +86,16 @@ int mm_init(void)
     PUT(heap_listp + (7 * WSIZE), PACK(0, 1));         /* epilogue header */
     heap_listp += (2 * WSIZE);                         /* 프롤로그 푸터를 가리킴으로써 힙 영역에서 첫번째 bp의 역할을 함 */
 
+    printf("초기 heap_listp[0] %p\n", heap_listp);
+    printf("초기 heap_listp[1] %p\n", heap_listp + WSIZE);
+    printf("초기 heap_listp[2] %p\n", heap_listp + 2 * WSIZE);
+    printf("초기 heap_listp[3] %p\n", heap_listp + 3 * WSIZE);
+    printf("prologue footer ptr %p\n", heap_listp + 4 * WSIZE);
+
     // 청크사이즈 바이트의 가용블럭으로 힙 확장
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
         return -1;
+    printf("초기 확장 후 가용list ptr %p\n", *((void **)heap_listp + 3));
     return 0;
 }
 
@@ -114,9 +121,12 @@ void *mm_malloc(size_t size)
     else
         asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
 
+    printf("============================================================\n");
+    printf("find fit 하기 전\n");
     // asize만큼 할당할 수 있는 가용영역이 있으면 할당/영역분할 하고 bp 반환
     if ((bp = find_fit(asize)) != NULL)
     {
+        printf("find fit 성공함\n");
         place(bp, asize);
         return bp;
     }
@@ -125,6 +135,7 @@ void *mm_malloc(size_t size)
     extendsize = MAX(asize, CHUNKSIZE);
     if ((bp = extend_heap(extendsize / WSIZE)) == NULL)
         return NULL;
+    printf("heap영역 %d 추가 할당받음\n", extendsize);
     place(bp, asize);
     return bp;
 }
@@ -238,16 +249,26 @@ static void *find_fit(size_t asize)
 {
     void **ptr;
     void *bp;
+    printf("malloc(%d)\n", asize);
     for (ptr = get_seglist_ptr(asize); ptr != (void **)heap_listp + 4; ptr++)
     {
+        printf("find fit 의 ptr 돌아가면서 for문\n");
+        printf("ptr:%p\n", ptr);
         if (ptr == NULL)
             continue;
         for (bp = *ptr; bp != NULL; bp = NEXT_FBLKP(bp)) /* 에필로그 만나기 전까지 반복 */
         {
+            printf("find fit 의 list돌면서 가능여부 확인하는 for문\n");
+            printf("bp:%p\n", bp);
+            printf("next bp:%p\n", NEXT_FBLKP(bp));
             if (GET_SIZE(HDRP(bp)) >= asize) /* 찾았으면 리턴 */
+            {
                 return bp;
+            }
         }
     }
+    printf("find_fit 실패함\n");
+    printf("마지막 bp ptr %p\n", bp);
     return NULL; /* 못찾았으면 널 리턴 */
 }
 
@@ -257,6 +278,7 @@ static void place(void *bp, size_t asize)
     size_t original_size = GET_SIZE(HDRP(bp));
 
     change(bp);
+    printf("%p위치에 %d사이즈 place성공\n", bp, asize);
     if (original_size >= asize + 2 * DSIZE)
     {
         PUT(HDRP(bp), PACK(asize, 1));
@@ -267,6 +289,7 @@ static void place(void *bp, size_t asize)
         PUT(FTRP(bp), PACK(original_size - asize, 0));
 
         change_root(bp);
+        printf("seg list 위치 %p로 변경\n", bp);
     }
     else
     {

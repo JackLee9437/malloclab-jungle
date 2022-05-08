@@ -1,3 +1,5 @@
+// Perf index = 43 (util) + 40 (thru) = 83/100
+
 /*
  * mm-naive.c - The fastest, least memory-efficient malloc package.
  *
@@ -74,16 +76,14 @@ static void *heap_listp; /* 루트 */
 int mm_init(void)
 {
     // 빈 가용리스트 4워드 할당 및 prologue block 초기화
-    if ((heap_listp = mem_sbrk(8 * WSIZE)) == (void *)-1)
+    if ((heap_listp = mem_sbrk(6 * WSIZE)) == (void *)-1)
         return -1;
     PUT(heap_listp, 0);
-    PUT(heap_listp + (1 * WSIZE), PACK(3 * DSIZE, 1)); /* prologue header */
-    PUT_ADDRESS(heap_listp + (2 * WSIZE), NULL);       /* prologue 1*DSIZE seglist ptr */
-    PUT_ADDRESS(heap_listp + (3 * WSIZE), NULL);       /* prologue 2*DSIZE seglist ptr */
-    PUT_ADDRESS(heap_listp + (4 * WSIZE), NULL);       /* prologue 3*DSIZE seglist ptr */
-    PUT_ADDRESS(heap_listp + (5 * WSIZE), NULL);       /* prologue 4*DSIZE seglist ptr */
-    PUT(heap_listp + (6 * WSIZE), PACK(3 * DSIZE, 1)); /* prologue footer */
-    PUT(heap_listp + (7 * WSIZE), PACK(0, 1));         /* epilogue header */
+    PUT(heap_listp + (1 * WSIZE), PACK(2 * DSIZE, 1)); /* prologue header */
+    PUT_ADDRESS(heap_listp + (2 * WSIZE), NULL);       /* prologue PRVP */
+    PUT_ADDRESS(heap_listp + (3 * WSIZE), NULL);       /* prologue NXTP */
+    PUT(heap_listp + (4 * WSIZE), PACK(2 * DSIZE, 1)); /* prologue footer */
+    PUT(heap_listp + (5 * WSIZE), PACK(0, 1));         /* epilogue header */
     heap_listp += (2 * WSIZE);                         /* 프롤로그 푸터를 가리킴으로써 힙 영역에서 첫번째 bp의 역할을 함 */
 
     // 청크사이즈 바이트의 가용블럭으로 힙 확장
@@ -233,20 +233,13 @@ static void *coalesce(void *bp)
 }
 
 // 요구 사이즈에 대해서 가용 영역 찾기
-static void **get_seglist_ptr(size_t asize);
 static void *find_fit(size_t asize)
 {
-    void **ptr;
     void *bp;
-    for (ptr = get_seglist_ptr(asize); ptr != (void **)heap_listp + 4; ptr++)
+    for (bp = NEXT_FBLKP(heap_listp); bp != NULL; bp = NEXT_FBLKP(bp)) /* 에필로그 만나기 전까지 반복 */
     {
-        if (ptr == NULL)
-            continue;
-        for (bp = *ptr; bp != NULL; bp = NEXT_FBLKP(bp)) /* 에필로그 만나기 전까지 반복 */
-        {
-            if (GET_SIZE(HDRP(bp)) >= asize) /* 찾았으면 리턴 */
-                return bp;
-        }
+        if (GET_SIZE(HDRP(bp)) >= asize) /* 찾았으면 리턴 */
+            return bp;
     }
     return NULL; /* 못찾았으면 널 리턴 */
 }
@@ -256,20 +249,26 @@ static void place(void *bp, size_t asize)
 {
     size_t original_size = GET_SIZE(HDRP(bp));
 
-    change(bp);
     if (original_size >= asize + 2 * DSIZE)
     {
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FTRP(bp), PACK(asize, 1));
 
+        void *nxtp = NEXT_FBLKP(bp);
+        void *prvp = PREV_FBLKP(bp);
         bp = NEXT_BLKP(bp);
         PUT(HDRP(bp), PACK(original_size - asize, 0));
         PUT(FTRP(bp), PACK(original_size - asize, 0));
 
-        change_root(bp);
+        PUT_ADDRESS(NXTP(bp), nxtp);
+        PUT_ADDRESS(NXTP(prvp), bp);
+        PUT_ADDRESS(PRVP(bp), prvp);
+        if (nxtp != NULL)
+            PUT_ADDRESS(PRVP(nxtp), bp);
     }
     else
     {
+        change(bp);
         PUT(HDRP(bp), PACK(original_size, 1));
         PUT(FTRP(bp), PACK(original_size, 1));
     }
@@ -278,12 +277,11 @@ static void place(void *bp, size_t asize)
 // explicit - 메모리 반환시 root와 free된 영역 연결
 static void change_root(void *bp)
 {
-    void **ptr = get_seglist_ptr(GET_SIZE(HDRP(bp)));
-    PUT_ADDRESS(NXTP(bp), *ptr);
-    PUT_ADDRESS(PRVP(bp), ptr);
-    if (*ptr != NULL)
-        PUT_ADDRESS(PRVP(*ptr), bp);
-    PUT_ADDRESS(ptr, bp);
+    PUT_ADDRESS(NXTP(bp), NEXT_FBLKP(heap_listp));
+    PUT_ADDRESS(PRVP(bp), heap_listp);
+    if (NEXT_FBLKP(heap_listp) != NULL)
+        PUT_ADDRESS(PRVP(NEXT_FBLKP(heap_listp)), bp);
+    PUT_ADDRESS(NXTP(heap_listp), bp);
 }
 
 // explicit - 반환되는 bp 기준 전/후 free 영역 연결
@@ -291,28 +289,8 @@ static void change(void *bp)
 {
     void *prvp = PREV_FBLKP(bp);
     void *nxtp = NEXT_FBLKP(bp);
-    void **ptr = get_seglist_ptr(GET_SIZE(HDRP(bp)));
 
-    if ((void **)prvp == ptr)
-        PUT_ADDRESS(ptr, nxtp);
-    else
-        PUT_ADDRESS(NXTP(prvp), nxtp);
+    PUT_ADDRESS(NXTP(prvp), nxtp);
     if (nxtp != NULL)
         PUT_ADDRESS(PRVP(nxtp), prvp);
-}
-
-// 필요한 사이즈에 따라 필요한 seglist의 ptr를 반환
-static void **get_seglist_ptr(size_t asize)
-{
-    switch (asize)
-    {
-    case 16:
-        return (void **)heap_listp;
-    case 24:
-        return (void **)heap_listp + 1;
-    case 32:
-        return (void **)heap_listp + 2;
-    default:
-        return (void **)heap_listp + 3;
-    }
 }
