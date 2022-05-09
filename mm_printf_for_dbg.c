@@ -111,6 +111,9 @@ void *mm_malloc(size_t size)
     size_t extendsize; /* 가용한 영역이 없을 경우 힙을 확장하기 위한 사이즈 */
     void *bp;
 
+    printf("============================================================\n");
+    printf("malloc(%d)\n", size);
+
     // 잘못된 요청은 무시
     if (size == 0)
         return NULL;
@@ -121,7 +124,6 @@ void *mm_malloc(size_t size)
     else
         asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
 
-    printf("============================================================\n");
     printf("find fit 하기 전\n");
     // asize만큼 할당할 수 있는 가용영역이 있으면 할당/영역분할 하고 bp 반환
     if ((bp = find_fit(asize)) != NULL)
@@ -148,6 +150,7 @@ void mm_free(void *bp)
 {
     size_t size = GET_SIZE(HDRP(bp));
 
+    printf("free(%p)\n", bp);
     PUT(HDRP(bp), PACK(size, 0)); /* 헤더의 할당여부bit를 0으로 변경 */
     PUT(FTRP(bp), PACK(size, 0)); /* 푸터의 할당여부bit를 0으로 변경 */
     coalesce(bp);                 /* 이전/이후 블럭이 가용블럭이면 연결 */
@@ -249,7 +252,6 @@ static void *find_fit(size_t asize)
 {
     void **ptr;
     void *bp;
-    printf("malloc(%d)\n", asize);
     for (ptr = get_seglist_ptr(asize); ptr != (void **)heap_listp + 4; ptr++)
     {
         printf("find fit 의 ptr 돌아가면서 for문\n");
@@ -307,6 +309,7 @@ static void change_root(void *bp)
     if (*ptr != NULL)
         PUT_ADDRESS(PRVP(*ptr), bp);
     PUT_ADDRESS(ptr, bp);
+    printf("새로생긴 %d크기의 free영역 %p 을 seglist ptr %p에 연결완료\n", GET_SIZE(HDRP(bp)), bp, ptr);
 }
 
 // explicit - 반환되는 bp 기준 전/후 free 영역 연결

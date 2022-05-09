@@ -1,3 +1,6 @@
+// Perf index = 43 (util) + 40 (thru) = 83/100
+// Why not differ from Explicit...? I thought this has better util performance compared to explicit list...
+
 /*
  * mm-naive.c - The fastest, least memory-efficient malloc package.
  *
@@ -74,16 +77,18 @@ static void *heap_listp; /* 루트 */
 int mm_init(void)
 {
     // 빈 가용리스트 4워드 할당 및 prologue block 초기화
-    if ((heap_listp = mem_sbrk(8 * WSIZE)) == (void *)-1)
+    if ((heap_listp = mem_sbrk(10 * WSIZE)) == (void *)-1)
         return -1;
     PUT(heap_listp, 0);
-    PUT(heap_listp + (1 * WSIZE), PACK(3 * DSIZE, 1)); /* prologue header */
+    PUT(heap_listp + (1 * WSIZE), PACK(4 * DSIZE, 1)); /* prologue header */
     PUT_ADDRESS(heap_listp + (2 * WSIZE), NULL);       /* prologue 1*DSIZE seglist ptr */
     PUT_ADDRESS(heap_listp + (3 * WSIZE), NULL);       /* prologue 2*DSIZE seglist ptr */
     PUT_ADDRESS(heap_listp + (4 * WSIZE), NULL);       /* prologue 3*DSIZE seglist ptr */
     PUT_ADDRESS(heap_listp + (5 * WSIZE), NULL);       /* prologue 4*DSIZE seglist ptr */
-    PUT(heap_listp + (6 * WSIZE), PACK(3 * DSIZE, 1)); /* prologue footer */
-    PUT(heap_listp + (7 * WSIZE), PACK(0, 1));         /* epilogue header */
+    PUT_ADDRESS(heap_listp + (6 * WSIZE), NULL);       /* prologue 5*DSIZE seglist ptr */
+    PUT_ADDRESS(heap_listp + (7 * WSIZE), NULL);       /* prologue ~ 4096 seglist ptr */
+    PUT(heap_listp + (8 * WSIZE), PACK(4 * DSIZE, 1)); /* prologue footer */
+    PUT(heap_listp + (9 * WSIZE), PACK(0, 1));         /* epilogue header */
     heap_listp += (2 * WSIZE);                         /* 프롤로그 푸터를 가리킴으로써 힙 영역에서 첫번째 bp의 역할을 함 */
 
     // 청크사이즈 바이트의 가용블럭으로 힙 확장
@@ -238,7 +243,7 @@ static void *find_fit(size_t asize)
 {
     void **ptr;
     void *bp;
-    for (ptr = get_seglist_ptr(asize); ptr != (void **)heap_listp + 4; ptr++)
+    for (ptr = get_seglist_ptr(asize); ptr != (void **)heap_listp + 6; ptr++)
     {
         if (ptr == NULL)
             continue;
@@ -312,7 +317,12 @@ static void **get_seglist_ptr(size_t asize)
         return (void **)heap_listp + 1;
     case 32:
         return (void **)heap_listp + 2;
-    default:
+    case 40:
         return (void **)heap_listp + 3;
+    case 48:
+        return (void **)heap_listp + 4;
+    default:
+        return (void **)heap_listp + 5;
     }
 }
+// size를 좀 더 크게크게 나눠서 시도해보기.
