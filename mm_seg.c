@@ -1,3 +1,6 @@
+// Perf index = 43 (util) + 40 (thru) = 83/100
+// Why not differ from Explicit...? I thought this has better util performance compared to explicit list...
+
 /*
  * mm-naive.c - The fastest, least memory-efficient malloc package.
  *
@@ -196,6 +199,7 @@ static void *coalesce(void *bp)
     if (prev_alloc && next_alloc)
     {
         change_root(bp);
+        return bp;
     }
 
     // case2 : 이후 블럭이 가용한 경우
@@ -230,7 +234,6 @@ static void *coalesce(void *bp)
         bp = PREV_BLKP(bp);
         change_root(bp);
     }
-
     return bp;
 }
 
@@ -242,6 +245,8 @@ static void *find_fit(size_t asize)
     void *bp;
     for (ptr = get_seglist_ptr(asize); ptr != (void **)heap_listp + 6; ptr++)
     {
+        if (ptr == NULL)
+            continue;
         for (bp = *ptr; bp != NULL; bp = NEXT_FBLKP(bp)) /* 에필로그 만나기 전까지 반복 */
         {
             if (GET_SIZE(HDRP(bp)) >= asize) /* 찾았으면 리턴 */
@@ -320,3 +325,4 @@ static void **get_seglist_ptr(size_t asize)
         return (void **)heap_listp + 5;
     }
 }
+// size를 좀 더 크게크게 나눠서 시도해보기.

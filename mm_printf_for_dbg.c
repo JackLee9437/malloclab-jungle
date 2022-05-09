@@ -342,3 +342,18 @@ static void **get_seglist_ptr(size_t asize)
         return (void **)heap_listp + 3;
     }
 }
+
+// 디버깅용 임시 - 말록 호출할때마다 연결되어있는 개수 확인
+static void print_cnt_of_seglist(char *str)
+{
+    int i;
+    printf("--------------- %s 후 seglist 확인 ---------------\n", str);
+    for (i = 0; i < 6; i++)
+    {
+        void **ptr = (void **)heap_listp + i;
+        int cnt = 0;
+        for (void *bp = *ptr; bp != NULL; bp = NEXT_FBLKP(bp))
+            cnt += 1;
+        printf("seglist[%d]의 연결된 free area 개수: %d\n", i, cnt);
+    }
+}
