@@ -58,7 +58,7 @@ team_t team = {
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE((char *)(bp)-WSIZE)) /* 블럭포인터 bp로부터 다음 블럭포인터 bp 계산 및 반환 */
 #define PREV_BLKP(bp) ((char *)(bp)-GET_SIZE((char *)(bp)-DSIZE))   /* 블럭포인터 bp로부터 이전 블럭포인터 bp 계산 및 반환 */
 
-// explicit 구현을 위한 매크로 (전제 : free된 영역의 bp에만 사용 가능함.)
+// segregated 구현을 위한 매크로 (전제 : free된 영역의 bp에만 사용 가능함.)
 #define PUT_ADDRESS(p, val) (*((void **)(p)) = (void *)(val)) /* NXTP/PRVP p 에 주소값 저장 */
 #define PRVP(bp) ((char *)(bp))                               /* next 가용영역을 가리키는 주소값을 저장하는 word의 주소 반환 */
 #define NXTP(bp) ((char *)(bp) + WSIZE)                       /* prev 가용영역을 가리키는 주소값을 저장하는 word의 주소 반환 */
@@ -275,7 +275,7 @@ static void place(void *bp, size_t asize)
     }
 }
 
-// explicit - 메모리 반환시 root와 free된 영역 연결
+// segregated - 메모리 반환시 root와 free된 영역 연결
 static void change_root(void *bp)
 {
     void **ptr = get_seglist_ptr(GET_SIZE(HDRP(bp)));
@@ -286,7 +286,7 @@ static void change_root(void *bp)
     PUT_ADDRESS(ptr, bp);
 }
 
-// explicit - 반환되는 bp 기준 전/후 free 영역 연결
+// segregated - 반환되는 bp 기준 전/후 free 영역 연결
 static void change(void *bp)
 {
     void *prvp = PREV_FBLKP(bp);
