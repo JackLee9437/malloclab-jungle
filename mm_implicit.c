@@ -1,4 +1,22 @@
 // Perf index = 44 (util) + 9 (thru) = 53/100
+/*
+Results for mm malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes   99%    5694  0.009027   631
+ 1       yes   99%    5848  0.008465   691
+ 2       yes   99%    6648  0.013849   480
+ 3       yes  100%    5380  0.010300   522
+ 4       yes   66%   14400  0.000156 92072
+ 5       yes   92%    4800  0.010008   480
+ 6       yes   92%    4800  0.008805   545
+ 7       yes   55%   12000  0.237996    50
+ 8       yes   51%   24000  0.390258    61
+ 9       yes   27%   14401  0.121557   118
+10       yes   34%   14401  0.003493  4123
+Total          74%  112372  0.813914   138
+
+Perf index = 44 (util) + 9 (thru) = 54/100
+ */
 
 /*
  * mm-naive.c - The fastest, least memory-efficient malloc package.

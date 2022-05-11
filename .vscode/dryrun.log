@@ -1,12 +1,21 @@
-make --dry-run --always-make --keep-going --print-directory
+make --dry-run --keep-going --print-directory
 make: Entering directory '/home/ubuntu/malloclab-jungle'
+ 
 gcc -Wall -O2 -m32   -c -o mdriver.o mdriver.c
+ 
 gcc -Wall -O2 -m32   -c -o mm.o mm.c
+ 
 gcc -Wall -O2 -m32   -c -o memlib.o memlib.c
+ 
 gcc -Wall -O2 -m32   -c -o fsecs.o fsecs.c
+ 
 gcc -Wall -O2 -m32   -c -o fcyc.o fcyc.c
+ 
 gcc -Wall -O2 -m32   -c -o clock.o clock.c
+ 
 gcc -Wall -O2 -m32   -c -o ftimer.o ftimer.c
+ 
 gcc -Wall -O2 -m32 -o mdriver mdriver.o mm.o memlib.o fsecs.o fcyc.o clock.o ftimer.o
+ 
 make: Leaving directory '/home/ubuntu/malloclab-jungle'
  

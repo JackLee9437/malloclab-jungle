@@ -1,4 +1,25 @@
 // Perf index = 43 (util) + 40 (thru) = 83/100
+// implicit -> explicit 좋은점 : 가용리스트만 따로 관리해줌으로써 쓰루풋이 좋아진다.
+// 단점 : LIFO방식의 경우, 첫번째꺼가 원하는 크기보다 크면 무조건 할당하고 쪼개므로 best fit에 비해 메로리관리 측면 효율적이지 않고 외부단편화가 발생할 확률이 높음.
+
+/*
+Results for mm malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes   92%    5694  0.000193 29472
+ 1       yes   94%    5848  0.000167 35081
+ 2       yes   96%    6648  0.000271 24549
+ 3       yes   97%    5380  0.000251 21434
+ 4       yes   66%   14400  0.000203 70901
+ 5       yes   89%    4800  0.000642  7481
+ 6       yes   85%    4800  0.000580  8276
+ 7       yes   55%   12000  0.003924  3058
+ 8       yes   51%   24000  0.003865  6210
+ 9       yes   26%   14401  0.123854   116
+10       yes   34%   14401  0.003538  4071
+Total          71%  112372  0.137487   817
+
+Perf index = 43 (util) + 40 (thru) = 83/100
+ */
 
 /*
  * mm-naive.c - The fastest, least memory-efficient malloc package.
